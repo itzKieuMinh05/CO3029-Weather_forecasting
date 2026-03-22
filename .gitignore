@@ -1,0 +1,40 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment
+venv/
+.venv/
+env/
+ENV/
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+# Data files (nếu dataset lớn)
+data/raw/
+data/interim/
+
+# Model files
+*.pkl
+*.joblib
+
+# Output files
+outputs/
+results/
