@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import glob
 
-files = glob.glob("data/weather-vn-*.csv")
+files = glob.glob("../dataset/weather-vn-*.csv")
 dfs = []
 
 for f in files:
@@ -75,8 +75,13 @@ for col in cat_cols:
     df[col] = df[col].fillna(df[col].mode()[0])
 
 # range nhiệt độ
-if "temp_max" in df.columns and "temp_min" in df.columns:
-    df["temp_range"] = df["temp_max"] - df["temp_min"]
+# if "temp_max" in df.columns and "temp_min" in df.columns:
+#     df["temp_range"] = df["temp_max"] - df["temp_min"]
+date_key = df["time"].dt.date
+df["temp_range"] = (
+    df.groupby(["city", date_key])["temp_max"].transform("max")
+    - df.groupby(["city", date_key])["temp_min"].transform("min")
+)
 
 # wind direction -> vector
 if "wind_direction" in df.columns:
@@ -136,13 +141,16 @@ if "wind_speed" in df.columns:
 df = df.sort_values("time")
 
 if "temp_max" in df.columns:
-    df["temp_lag_1"] = df["temp_max"].shift(1)
+    # df["temp_lag_1"] = df["temp_max"].shift(1)
+    df["temp_lag_1"] = df.groupby("city")["temp_max"].shift(1)
 
 if "humidity" in df.columns:
-    df["humidity_lag_1"] = df["humidity"].shift(1)
+    # df["humidity_lag_1"] = df["humidity"].shift(1)
+    df["humidity_lag_1"] = df.groupby("city")["humidity"].shift(1)
 
 if "pressure" in df.columns:
-    df["pressure_lag_1"] = df["pressure"].shift(1)
+    # df["pressure_lag_1"] = df["pressure"].shift(1)
+    df["pressure_lag_1"] = df.groupby("city")["pressure"].shift(1)
 
 # save
 df.to_csv("weather_vn_cleaned.csv", index=False)
