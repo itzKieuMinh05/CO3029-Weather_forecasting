@@ -12,11 +12,11 @@ for f in files:
 df = pd.concat(dfs, ignore_index=True)
 print("Total rows:", len(df))
 
-# drop duplicates
+# print("Unique cities:", df["city"].unique())
+
 df = df.drop_duplicates()
 
 
-# parse time
 df["time"] = pd.to_datetime(df["time"])
 
 df["hour"] = df["time"].dt.hour
@@ -25,10 +25,45 @@ df["month"] = df["time"].dt.month
 df["weekday"] = df["time"].dt.weekday
 
 
-# drop location columns
 
-df = df.drop(columns=["province", "city"], errors="ignore")
-# Missing values
+df = df.drop(columns=["province"], errors="ignore")
+north = [
+    'Bac Giang','Bac Kan','Bac Ninh','Tu Son','Cao Bang',
+    'Dien Bien Phu','Ha Giang','Ha Noi','Hai Duong','Hai Phong',
+    'Hoa Binh','Hung Yen','My Hao','Lai Chau','Lang Son',
+    'Lao Cai','Nam Dinh','Ninh Binh','Tam Diep','Viet Tri',
+    'Cam Pha','Ha Long','Mong Cai','Uong Bi','Son La',
+    'Song Cong','Thai Nguyen','Tuyen Quang','Phuc Yen',
+    'Vinh Yen','Yen Bai'
+]
+
+central = [
+    'Quy Nhon','Phan Thiet','Da Nang','Buon Ma Thuot','Gia Nghia',
+    'Pleiku','Ha Tinh','Hong Linh','Cam Ranh','Nha Trang',
+    'Kon Tum','Phan Rang - Thap Cham','Tuy Hoa','Dong Hoi',
+    'Hoi An','Tam Ky','Quang Ngai','Dong Ha','Thai Hoa',
+    'Vinh','Sam Son','Thanh Hoa'
+]
+
+south = [
+    'Chau Doc','Long Xuyen','Ba Ria','Vung Tau','Bac Lieu',
+    'Ben Tre','Di An','Thu Dau Mot','Thuan An','Dong Xoai',
+    'Ca Mau','Can Tho','Bien Hoa','Long Khanh','Nga Bay',
+    'Vi Thanh','Ha Tien','Rach Gia','Tan An','Soc Trang',
+    'Ho Chi Minh','Tay Ninh','My Tho','Tra Vinh','Vinh Long'
+]
+
+def map_region(city):
+    if city in north:
+        return "north"
+    elif city in central:
+        return "central"
+    elif city in south:
+        return "south"
+    else:
+        return "unknown"
+
+df["region"] = df["city"].apply(map_region)
 
 num_cols = df.select_dtypes(include=[np.number]).columns
 cat_cols = df.select_dtypes(include=["object","string"]).columns
@@ -49,7 +84,6 @@ if "wind_direction" in df.columns:
     df["wind_dir_cos"] = np.cos(np.deg2rad(df["wind_direction"])).round(4)
 
 
-# drop weather_desc
 df = df.drop(columns=["weather_desc"], errors="ignore")
 if "rainfall" in df.columns:
     df["rain"] = df["rainfall"].apply(lambda x: 1 if x > 0 else 0)
