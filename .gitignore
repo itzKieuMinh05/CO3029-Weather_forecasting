@@ -28,6 +28,7 @@ ENV/
 *.log
 
 # Data files (nếu dataset lớn)
+data/
 data/raw/
 data/interim/
 
@@ -38,3 +39,5 @@ data/interim/
 # Output files
 outputs/
 results/
+notebook/checkpoint
+notebook/rules_output
