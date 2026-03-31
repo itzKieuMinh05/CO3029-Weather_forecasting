@@ -75,8 +75,11 @@ for col in cat_cols:
     df[col] = df[col].fillna(df[col].mode()[0])
 
 # range nhiệt độ
-if "temp_max" in df.columns and "temp_min" in df.columns:
-    df["temp_range"] = df["temp_max"] - df["temp_min"]
+date_key = df["time"].dt.date
+df["temp_range"] = (
+    df.groupby(["city", date_key])["temp_max"].transform("max")
+    - df.groupby(["city", date_key])["temp_min"].transform("min")
+)
 
 # wind direction -> vector
 if "wind_direction" in df.columns:
