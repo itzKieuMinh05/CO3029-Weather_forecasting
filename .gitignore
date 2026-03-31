@@ -38,3 +38,6 @@ data/interim/
 # Output files
 outputs/
 results/
+
+data/
+*.csv

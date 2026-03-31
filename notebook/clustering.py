@@ -10,10 +10,9 @@ from sklearn.decomposition import PCA
 # ======================
 # 1. LOAD DATA
 # ======================
-REGION_SOURCE_COLUMNS = ["region", "mien", "miền"]
 
 
-def load_data(path="../source/weather_vn_cleaned.csv"):
+def load_data(path="weather_huyen.csv"):
     print("Loading data...")
     df = pd.read_csv(path)
     df = ensure_region_column(df)
@@ -124,57 +123,105 @@ def train_kmeans(X_scaled, k=3):
 # 6. VISUALIZATION (PCA)
 # ======================
 def visualize_clusters(X_scaled, labels, regions):
+    import numpy as np
+
+    n = len(X_scaled)
+
+    # ======================
+    # SAMPLE 25%
+    # ======================
+    sample_size = int(n * 0.25)
+    idx = np.random.permutation(n)[:sample_size]
+
+    X_sample = X_scaled[idx]
+    labels_sample = labels[idx]
+    regions_sample = pd.Series(regions).iloc[idx].reset_index(drop=True)
+
+    print(f"Visualizing on {sample_size:,} samples (25%)")
+
+    # ======================
+    # PCA FIT TRÊN FULL DATA (chuẩn hơn)
+    # ======================
     pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(X_scaled)
+    pca.fit(X_scaled)
+    X_pca = pca.transform(X_sample)
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharex=True, sharey=True)
+    var = pca.explained_variance_ratio_
+    print(f"PCA variance: {var[0]:.1%}, {var[1]:.1%} (total={var.sum():.1%})")
 
-    scatter_cluster = axes[0].scatter(
-        X_pca[:, 0],
-        X_pca[:, 1],
-        c=labels,
-        cmap="tab10",
-        s=12,
-        alpha=0.7,
-    )
-    axes[0].set_xlabel("PCA 1")
-    axes[0].set_ylabel("PCA 2")
-    axes[0].set_title("PCA to mau theo cluster")
-    legend_cluster = axes[0].legend(
-        *scatter_cluster.legend_elements(),
-        title="Cluster",
-        loc="upper right",
-    )
-    axes[0].add_artist(legend_cluster)
-
-    region_series = pd.Series(regions).fillna("khac").astype(str)
+    # ======================
+    # TÁCH THEO REGION → 3 BIỂU ĐỒ
+    # ======================
+    region_series = regions_sample.fillna("khac").astype(str)
     unique_regions = sorted(region_series.unique())
-    palette = sns.color_palette("Set2", n_colors=max(len(unique_regions), 3))
-    color_map = {region: palette[i] for i, region in enumerate(unique_regions)}
-    region_colors = region_series.map(color_map)
 
-    axes[1].scatter(
-        X_pca[:, 0],
-        X_pca[:, 1],
-        c=list(region_colors),
-        s=12,
-        alpha=0.7,
-    )
-    axes[1].set_xlabel("PCA 1")
-    axes[1].set_ylabel("PCA 2")
-    axes[1].set_title("PCA to mau theo region")
+    for region in unique_regions:
+        mask = region_series == region
 
-    handles = [
-        plt.Line2D([0], [0], marker="o", linestyle="", color=color_map[r], label=r)
-        for r in unique_regions
-    ]
-    axes[1].legend(handles=handles, title="Region", loc="upper right")
+        X_r = X_pca[mask]
+        labels_r = labels_sample[mask]
 
-    plt.suptitle("So sanh phan bo Cluster va Region tren khong gian PCA")
-    plt.tight_layout()
-    plt.show()
+        plt.figure(figsize=(6, 5))
+
+        sc = plt.scatter(
+            X_r[:, 0],
+            X_r[:, 1],
+            c=labels_r,
+            cmap="tab10",
+            s=10,
+            alpha=0.6,
+        )
+
+        plt.xlabel(f"PC1 ({var[0]:.1%})")
+        plt.ylabel(f"PC2 ({var[1]:.1%})")
+        plt.title(f"PCA - Region: {region}")
+
+        plt.legend(*sc.legend_elements(), title="Cluster", loc="upper right")
+
+        plt.tight_layout()
+        plt.show()
+    
+    # ======================
+    # PLOT 2: THEO REGION
+    # ======================
+    plt.figure(figsize=(7, 6))
+
+    region_series = regions_sample.fillna("khac").astype(str)
+    unique_regions = sorted(region_series.unique())
+
+    palette = sns.color_palette("Set2", n_colors=len(unique_regions))
+    color_map = {r: palette[i] for i, r in enumerate(unique_regions)}
 
 
+    for region in unique_regions:
+        mask = region_series == region
+
+        plt.figure(figsize=(7, 6))
+
+        plt.scatter(
+            X_pca[mask, 0],
+            X_pca[mask, 1],
+            color=color_map[region],
+            s=10,
+            alpha=0.6,
+        )
+
+        plt.xlabel(f"PC1 ({var[0]:.1%})")
+        plt.ylabel(f"PC2 ({var[1]:.1%})")
+        plt.title(f"PCA theo Region: {region}")
+
+        # legend đơn giản (1 màu thôi)
+        handle = plt.Line2D(
+            [0], [0],
+            marker="o",
+            linestyle="",
+            color=color_map[region],
+            label=region
+        )
+        plt.legend(handles=[handle], title="Region", loc="upper right")
+
+        plt.tight_layout()
+        plt.show()
 # ======================
 # 7. ANALYZE CLUSTERS
 # ======================

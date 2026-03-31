@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import glob
 
-files = glob.glob("../dataset/weather-vn-*.csv")
+files = glob.glob("../data/weather-vn-*.csv")
 dfs = []
 
 for f in files:
