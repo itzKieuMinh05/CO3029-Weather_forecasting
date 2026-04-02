@@ -36,6 +36,8 @@ data/interim/
 *.pkl
 *.joblib
 
+*.csv
+
 # Output files
 outputs/
 results/
