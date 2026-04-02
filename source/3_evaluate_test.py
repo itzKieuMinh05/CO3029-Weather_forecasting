@@ -66,4 +66,9 @@ plt.title('Ma trận nhầm lẫn - Cảnh báo Thời tiết (XGBoost)')
 plt.ylabel('Thực tế')
 plt.xlabel('Dự đoán')
 plt.savefig('test_confusion_matrix.png')
+<<<<<<< HEAD
 print("\n=> Đã xuất ảnh 'test_confusion_matrix.png'!")
+=======
+print("\n=> Đã xuất ảnh 'test_confusion_matrix.png'!")
+print("T1 Score: " + results_df.loc[results_df['Model'] == "XGBoost (Công nghệ mới)", 'Recall'].values[0])
+>>>>>>> huyen

@@ -41,5 +41,11 @@ data/interim/
 # Output files
 outputs/
 results/
+<<<<<<< HEAD
 notebook/checkpoint
 notebook/rules_output
+=======
+
+data/
+*.csv
+>>>>>>> huyen

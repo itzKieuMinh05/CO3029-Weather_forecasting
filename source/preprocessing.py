@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import glob
 
-files = glob.glob("data/weather-vn-*.csv")
+files = glob.glob("../data/weather-vn-*.csv")
 dfs = []
 
 for f in files:
@@ -33,6 +33,7 @@ for col in cat_cols:
     df[col] = df[col].fillna(df[col].mode()[0])
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 # range nhiệt độ
 date_key = df["time"].dt.date
 df["temp_range"] = (
@@ -40,6 +41,8 @@ df["temp_range"] = (
     - df.groupby(["city", date_key])["temp_min"].transform("min")
 )
 =======
+=======
+>>>>>>> huyen
 # 4. Feature Engineering: Range nhiệt độ & Hướng gió
 if "temp_max" in df.columns and "temp_min" in df.columns:
     df["temp_range"] = df["temp_max"] - df["temp_min"]
