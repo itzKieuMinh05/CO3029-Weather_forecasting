@@ -1,290 +1,223 @@
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-
-from sklearn.cluster import MiniBatchKMeans
-from sklearn.preprocessing import StandardScaler
+import pandas as pd
+from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import StandardScaler
+
+CITY_COLUMN_CANDIDATES = ["city", "province", "location"]
 
 
 # ======================
-# 1. LOAD DATA
+# 1. LOAD + PREPARE DATA
 # ======================
-
-
-def load_data(path="weather_huyen.csv"):
+def load_data(path="../source/weather_vn_cleaned.csv"):
     print("Loading data...")
     df = pd.read_csv(path)
-    df = ensure_region_column(df)
-    print("Shape:", df.shape)
+    print("Raw shape:", df.shape)
     return df
 
 
-def ensure_region_column(df):
-    # Uu tien dung cot da duoc tao tu preprocessing.
-    if "region" in df.columns:
-        return df
-
-    for col in REGION_SOURCE_COLUMNS[1:]:
+def select_city_column(df):
+    for col in CITY_COLUMN_CANDIDATES:
         if col in df.columns:
-            df["region"] = df[col]
-            return df
-
-    # Fallback: giu schema nhat quan de cac buoc sau khong bi loi cot.
-    df["region"] = "unknown"
-    return df
+            return col
+    raise ValueError("Khong tim thay cot tinh/thanh (city/province/location).")
 
 
-# ======================
-# 2. SELECT FEATURES
-# ======================
-def select_features(df):
-    features = [
-        # "temp_max",
-        # "temp_min",
+def select_weather_features(df):
+    feature_candidates = [
         "temperature",
         "humidity",
         "pressure",
         "wind_speed",
-        "temp_range"
+        "cloudcover",
+
     ]
-
-    # giữ những cột tồn tại
-    features = [f for f in features if f in df.columns]
-
+    features = [f for f in feature_candidates if f in df.columns]
     if not features:
         raise ValueError("Khong tim thay feature so hop le de clustering.")
-
     print("Using features:", features)
+    return features
 
-    X = df[features].dropna()
-    return X, features
+
+def aggregate_by_city(df, city_col, features):
+    df_use = df[[city_col] + features].copy()
+    df_use = df_use.dropna(subset=[city_col])
+
+    # Trung binh theo tinh/thanh de tim pattern cap vung.
+    city_metrics = df_use.groupby(city_col, as_index=False)[features].mean()
+    city_metrics = city_metrics.dropna()
+
+    print("Cities used for clustering:", len(city_metrics))
+    return city_metrics
 
 
 # ======================
-# 3. SCALING
+# 2. SCALING
 # ======================
-def scale_data(X):
+def scale_data(city_metrics, features):
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    X_scaled = scaler.fit_transform(city_metrics[features])
     return X_scaled
 
 
 # ======================
-# 4. FIND BEST K (ELBOW)
+# 3. FIND BEST K (ELBOW + SILHOUETTE)
 # ======================
 def find_optimal_k(X_scaled):
+    max_k = min(10, len(X_scaled) - 1)
+    if max_k < 2:
+        raise ValueError("So luong tinh/thanh khong du de clustering (can >= 3).")
+
+    k_values = list(range(2, max_k + 1))
     inertia = []
-    k_values = range(1, 10)
+    sil_scores = []
 
-    batch_size = min(2048, max(256, len(X_scaled) // 20))
-
-    print(f"Running Elbow Method with MiniBatchKMeans (batch_size={batch_size})...")
-
+    print("Running Elbow + Silhouette...")
     for k in k_values:
-        kmeans = MiniBatchKMeans(
-            n_clusters=k,
-            random_state=42,
-            n_init=10,
-            batch_size=batch_size,
-            max_iter=200,
-            reassignment_ratio=0.01,
-        )
-        kmeans.fit(X_scaled)
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(X_scaled)
         inertia.append(kmeans.inertia_)
+        sil_scores.append(silhouette_score(X_scaled, labels))
 
-    plt.figure()
-    plt.plot(k_values, inertia, marker='o')
+    # Elbow plot
+    plt.figure(figsize=(7, 5))
+    plt.plot(k_values, inertia, marker="o")
     plt.xlabel("Number of clusters (k)")
     plt.ylabel("Inertia")
-    plt.title("Elbow Method (MiniBatchKMeans)")
+    plt.title("Elbow Method")
+    plt.tight_layout()
     plt.show()
 
+    # Silhouette plot
+    plt.figure(figsize=(7, 5))
+    plt.plot(k_values, sil_scores, marker="o")
+    plt.xlabel("Number of clusters (k)")
+    plt.ylabel("Silhouette score")
+    plt.title("Silhouette by k")
+    plt.tight_layout()
+    plt.show()
+
+    best_k = k_values[sil_scores.index(max(sil_scores))]
+    print(f"Suggested k from silhouette: {best_k}")
+    return best_k
+
 
 # ======================
-# 5. TRAIN KMEANS
+# 4. TRAIN KMEANS
 # ======================
-def train_kmeans(X_scaled, k=3):
-    batch_size = min(2048, max(256, len(X_scaled) // 20))
-    print(f"Training MiniBatchKMeans with k={k}, batch_size={batch_size}...")
-    kmeans = MiniBatchKMeans(
-        n_clusters=k,
-        random_state=42,
-        n_init=10,
-        batch_size=batch_size,
-        max_iter=300,
-        reassignment_ratio=0.01,
-    )
+def train_kmeans(X_scaled, k):
+    print(f"Training KMeans with k={k}...")
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
     labels = kmeans.fit_predict(X_scaled)
     return kmeans, labels
 
 
 # ======================
-# 6. VISUALIZATION (PCA)
+# 5. VISUALIZATION (PCA)
 # ======================
-def visualize_clusters(X_scaled, labels, regions):
-    import numpy as np
-
-    n = len(X_scaled)
-
-    # ======================
-    # SAMPLE 25%
-    # ======================
-    sample_size = int(n * 0.25)
-    idx = np.random.permutation(n)[:sample_size]
-
-    X_sample = X_scaled[idx]
-    labels_sample = labels[idx]
-    regions_sample = pd.Series(regions).iloc[idx].reset_index(drop=True)
-
-    print(f"Visualizing on {sample_size:,} samples (25%)")
-
-    # ======================
-    # PCA FIT TRÊN FULL DATA (chuẩn hơn)
-    # ======================
-    pca = PCA(n_components=2)
-    pca.fit(X_scaled)
-    X_pca = pca.transform(X_sample)
-
+def visualize_clusters(X_scaled, labels, city_names):
+    pca = PCA(n_components=2, random_state=42)
+    X_pca = pca.fit_transform(X_scaled)
     var = pca.explained_variance_ratio_
-    print(f"PCA variance: {var[0]:.1%}, {var[1]:.1%} (total={var.sum():.1%})")
 
-    # ======================
-    # TÁCH THEO REGION → 3 BIỂU ĐỒ
-    # ======================
-    region_series = regions_sample.fillna("khac").astype(str)
-    unique_regions = sorted(region_series.unique())
+    plt.figure(figsize=(9, 7))
+    scatter = plt.scatter(
+        X_pca[:, 0],
+        X_pca[:, 1],
+        c=labels,
+        cmap="tab10",
+        s=70,
+        alpha=0.85,
+        edgecolors="k",
+        linewidth=0.3,
+    )
 
-    for region in unique_regions:
-        mask = region_series == region
+    for i, city in enumerate(city_names):
+        plt.annotate(city, (X_pca[i, 0], X_pca[i, 1]), fontsize=8, alpha=0.9)
 
-        X_r = X_pca[mask]
-        labels_r = labels_sample[mask]
+    plt.xlabel(f"PC1 ({var[0]:.1%})")
+    plt.ylabel(f"PC2 ({var[1]:.1%})")
+    plt.title("KMeans Clusters of Provinces/Cities")
+    plt.grid(True, linestyle="--", linewidth=0.6, alpha=0.6)
+    plt.legend(*scatter.legend_elements(), title="Cluster", loc="best")
+    plt.tight_layout()
+    plt.show()
 
-        plt.figure(figsize=(6, 5))
 
-        sc = plt.scatter(
-            X_r[:, 0],
-            X_r[:, 1],
-            c=labels_r,
-            cmap="tab10",
-            s=10,
-            alpha=0.6,
+def plot_provinces_per_cluster(labels):
+    cluster_counts = pd.Series(labels).value_counts().sort_index()
+    colors = plt.cm.Pastel1(range(len(cluster_counts)))
+
+    plt.figure(figsize=(7, 5))
+    bars = plt.bar(cluster_counts.index.astype(str), cluster_counts.values, color=colors)
+    plt.xlabel("Cluster")
+    plt.ylabel("Number of Provinces")
+    plt.title("Number of Provinces per Cluster")
+    plt.grid(axis="y", linestyle="--", linewidth=0.6, alpha=0.6)
+
+    for bar, value in zip(bars, cluster_counts.values):
+        plt.text(
+            bar.get_x() + bar.get_width() / 2,
+            value,
+            str(value),
+            ha="center",
+            va="bottom",
+            fontsize=9,
         )
 
-        plt.xlabel(f"PC1 ({var[0]:.1%})")
-        plt.ylabel(f"PC2 ({var[1]:.1%})")
-        plt.title(f"PCA - Region: {region}")
-
-        plt.legend(*sc.legend_elements(), title="Cluster", loc="upper right")
-
-        plt.tight_layout()
-        plt.show()
-    
-    # ======================
-    # PLOT 2: THEO REGION
-    # ======================
-    plt.figure(figsize=(7, 6))
-
-    region_series = regions_sample.fillna("khac").astype(str)
-    unique_regions = sorted(region_series.unique())
-
-    palette = sns.color_palette("Set2", n_colors=len(unique_regions))
-    color_map = {r: palette[i] for i, r in enumerate(unique_regions)}
+    plt.tight_layout()
+    plt.show()
 
 
-    for region in unique_regions:
-        mask = region_series == region
-
-        plt.figure(figsize=(7, 6))
-
-        plt.scatter(
-            X_pca[mask, 0],
-            X_pca[mask, 1],
-            color=color_map[region],
-            s=10,
-            alpha=0.6,
-        )
-
-        plt.xlabel(f"PC1 ({var[0]:.1%})")
-        plt.ylabel(f"PC2 ({var[1]:.1%})")
-        plt.title(f"PCA theo Region: {region}")
-
-        # legend đơn giản (1 màu thôi)
-        handle = plt.Line2D(
-            [0], [0],
-            marker="o",
-            linestyle="",
-            color=color_map[region],
-            label=region
-        )
-        plt.legend(handles=[handle], title="Region", loc="upper right")
-
-        plt.tight_layout()
-        plt.show()
 # ======================
-# 7. ANALYZE CLUSTERS
+# 6. ANALYZE CLUSTERS
 # ======================
-def analyze_clusters(df, X, labels, features):
-    df_clustered = df.loc[X.index].copy()
-    df_clustered["cluster"] = labels
+def analyze_clusters(city_metrics, labels, features, city_col):
+    result = city_metrics.copy()
+    result["cluster"] = labels
 
-    print("\nCluster Summary:")
-    summary = df_clustered.groupby("cluster")[features].mean()
+    print("\nCluster centroids (original scale):")
+    summary = result.groupby("cluster")[features].mean().round(3)
     print(summary)
 
-    if "region" in df_clustered.columns:
-        print("\nCluster by region (count):")
-        print(df_clustered.groupby(["cluster", "region"]).size().unstack(fill_value=0))
-    
-    if "rain" in df_clustered.columns:
-        print("\nRain rate per cluster:")
-        print(df_clustered.groupby("cluster")["rain"].mean())
-    
-    if "extreme" in df_clustered.columns:
-        print("\nExtreme weather distribution:")
-        print(df_clustered.groupby("cluster")["extreme"].value_counts(normalize=True))
+    print("\nCities per cluster:")
+    cities_per_cluster = result.groupby("cluster")[city_col].apply(list)
+    for cluster_id, city_list in cities_per_cluster.items():
+        print(f"Cluster {cluster_id} ({len(city_list)} cities): {city_list}")
 
-    return df_clustered
+    return result, summary
 
 
 # ======================
-# 8. SAVE RESULT
+# 7. SAVE RESULT
 # ======================
-def save_result(df_clustered, path="weather_clustered.csv"):
-    df_clustered.to_csv(path, index=False)
-    print(f"Saved clustered data to {path}")
+def save_result(result, summary):
+    result.to_csv("city_weather_clusters.csv", index=False)
+    summary.to_csv("cluster_weather_profiles.csv")
+    print("Saved city cluster assignments to city_weather_clusters.csv")
+    print("Saved cluster profiles to cluster_weather_profiles.csv")
 
 
 # ======================
-# 9. MAIN
+# 8. MAIN
 # ======================
 def main():
-    # load
     df = load_data()
+    city_col = select_city_column(df)
+    features = select_weather_features(df)
 
-    # feature selection
-    X, features = select_features(df)
+    city_metrics = aggregate_by_city(df, city_col, features)
+    X_scaled = scale_data(city_metrics, features)
 
-    # scale
-    X_scaled = scale_data(X)
+    best_k = find_optimal_k(X_scaled)
+    _, labels = train_kmeans(X_scaled, k=best_k)
 
-    # tìm k
-    find_optimal_k(X_scaled)
-
-    k = 3
-
-    # train
-    _, labels = train_kmeans(X_scaled, k)
-
-    # visualize
-    visualize_clusters(X_scaled, labels, df.loc[X.index, "region"])
-
-    # analyze
-    df_clustered = analyze_clusters(df, X, labels, features)
-
-    # save
-    save_result(df_clustered)
+    visualize_clusters(X_scaled, labels, city_metrics[city_col].tolist())
+    plot_provinces_per_cluster(labels)
+    result, summary = analyze_clusters(city_metrics, labels, features, city_col)
+    save_result(result, summary)
 
 
 if __name__ == "__main__":
