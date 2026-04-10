@@ -34,15 +34,23 @@ X_train_sm, y_train_sm = smote.fit_resample(X_train, y_train_encoded)
 
 # Huấn luyện mô hình
 print("Đang huấn luyện Random Forest...")
-rf_model = RandomForestClassifier(n_estimators=100, max_depth=12, n_jobs=-1, random_state=42)
+rf_model = RandomForestClassifier(n_estimators=100, max_depth=12, n_jobs=-1, random_state=42, class_weight='balanced')
 rf_model.fit(X_train_sm, y_train_sm)
 
 print("Đang huấn luyện XGBoost (Công nghệ mới)...")
 xgb_model = XGBClassifier(n_estimators=150, max_depth=6, learning_rate=0.05, 
-                          random_state=42, eval_metric='mlogloss', n_jobs=-1)
+                          random_state=42, eval_metric='mlogloss', n_jobs=-1, scale_pos_weight=1)
 xgb_model.fit(X_train_sm, y_train_sm)
 
 # Lưu mô hình
 joblib.dump(rf_model, 'rf_model.pkl')
 joblib.dump(xgb_model, 'xgb_model.pkl')
+
+y_train_rain = train_df['rain']  # đã là 0/1, không cần LabelEncoder
+rf_rain  = RandomForestClassifier(n_estimators=100, max_depth=12, n_jobs=-1, random_state=42, class_weight='balanced')
+xgb_rain = XGBClassifier(n_estimators=150, max_depth=6, learning_rate=0.05, random_state=42, eval_metric='logloss', n_jobs=-1)
+rf_rain.fit(X_train, y_train_rain)
+xgb_rain.fit(X_train, y_train_rain)
+joblib.dump(rf_rain,  'rf_rain_model.pkl')
+joblib.dump(xgb_rain, 'xgb_rain_model.pkl')
 print("=> Đã lưu mô hình: 'rf_model.pkl' và 'xgb_model.pkl'")

@@ -103,6 +103,8 @@ def extreme_weather(row):
         return "heavy_rain"
     elif row.get("wind_speed", 0) > 40:
         return "storm"
+    elif row.get("rainfall", 0) > 0:
+        return "rain"
     else:
         return "normal"
 

@@ -11,7 +11,7 @@ CITY_COLUMN_CANDIDATES = ["city", "province", "location"]
 # ======================
 # 1. LOAD + PREPARE DATA
 # ======================
-def load_data(path="../source/weather_vn_cleaned.csv"):
+def load_data(path="weather_vn_cleaned.csv"):
     print("Loading data...")
     df = pd.read_csv(path)
     print("Raw shape:", df.shape)
