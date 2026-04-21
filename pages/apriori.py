@@ -12,7 +12,7 @@ from utils import GLOBAL_CSS, fig_ax, kpi_card, page_header, section, sidebar_he
 
 
 st.set_page_config(
-    page_title="Apriori Insights - WeatherVN",
+    page_title="FPGrowth Insights - WeatherVN",
     page_icon="🧩",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -114,13 +114,13 @@ sidebar_header(sidebar_content)
 page_header(
     "🧩",
     "linear-gradient(135deg,#EEF2FF,#E0E7FF)",
-    "Apriori Association Rules",
+    "FPGrowth Association Rules",
     "Dashboard kết quả luật kết hợp theo Region (không hiển thị notebook).",
 )
 
 rules_df, rules_dir = load_rules_data()
 if rules_df is None:
-    st.error("Không tìm thấy file rules CSV. Hãy chạy pipeline Apriori trước để tạo rules_output/rules_*.csv.")
+    st.error("Không tìm thấy file rules CSV. Hãy chạy pipeline FPGrowth trước để tạo rules_output/rules_*.csv.")
     st.stop()
 
 if rules_dir:

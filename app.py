@@ -100,8 +100,8 @@ with col_hero:
                      help="PCA & phân tích cụm"):
             st.switch_page("pages/clustering.py")
 
-        if st.button("🧩 Apriori", use_container_width=True,
-                     help="Phân tích luật kết hợp từ notebook Apriori"):
+        if st.button("🧩 FPGrowth", use_container_width=True,
+                     help="Phân tích luật kết hợp từ notebook FPGrowth"):
             st.switch_page("pages/apriori.py")
 
 with col_stats:

@@ -13,7 +13,8 @@ drop_cols = [
     target, 'rain', 'time', 'weather_code', 'weather_main', 'weather_description', 'weather_icon',
     'temperature', 'temp_min', 'temp_max', 'feels_like', 'temp_range',
     'wind_speed', 'wind_gust', 'rainfall', 'precipitation',
-    'temp_level', 'humidity_level', 'pressure_level', 'wind_level'
+    'temp_level', 'humidity_level', 'pressure_level', 'wind_level',
+    'temp_lag_1', 'humidity_lag_1', 'pressure_lag_1'
 ]
 
 X_test = test_df.drop(columns=drop_cols, errors='ignore').select_dtypes(include=[np.number])
